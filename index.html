@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>انتخابات إدارة حدائق القبة - التصويت الإلكتروني</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #090d16 100%);
+            color: #f3f4f6;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .vote-card {
+            background: rgba(30, 41, 59, 0.85);
+            backdrop-filter: blur(15px);
+            border: 2px solid rgba(206, 17, 38, 0.4);
+            padding: 35px;
+            border-radius: 22px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.7);
+            width: 420px;
+            text-align: center;
+            position: relative;
+        }
+        .egypt-flag-bar {
+            height: 6px;
+            width: 100%;
+            background: linear-gradient(to right, #ce1126 33.33%, #ffffff 33.33%, #ffffff 66.66%, #000000 66.66%);
+            position: absolute;
+            top: 0;
+            right: 0;
+            border-top-left-radius: 22px;
+            border-top-right-radius: 22px;
+        }
+        h2 { color: #38bdf8; margin-top: 15px; font-size: 24px; text-shadow: 0 0 10px rgba(56,189,248,0.3); }
+        .admin-title { font-size: 15px; color: #facc15; font-weight: bold; margin-bottom: 10px; }
+        input, select {
+            width: 100%;
+            padding: 14px;
+            margin: 10px 0;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid #475569;
+            color: #fff;
+            border-radius: 10px;
+            font-size: 15px;
+            transition: all 0.3s ease;
+        }
+        input:focus, select:focus {
+            border-color: #38bdf8;
+            outline: none;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+        }
+        #customCandidateContainer { display: none; }
+        .btn-action {
+            background: linear-gradient(135deg, #ce1126 0%, #990d1c 100%);
+            color: white;
+            border: none;
+            padding: 14px;
+            width: 100%;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-top: 15px;
+            box-shadow: 0 4px 15px rgba(206, 17, 38, 0.4);
+        }
+        .btn-action:hover {
+            background: linear-gradient(135deg, #b90f21 0%, #7c0a16 100%);
+            transform: translateY(-2px);
+        }
+        #status { margin-top: 15px; font-size: 14px; font-weight: 500; }
+    </style>
+</head>
+<body>
+
+<div class="vote-card">
+    <div class="egypt-flag-bar"></div>
+    <div class="admin-title">🇪🇬 إدارة حدائق القبة التعليمية</div>
+    <h2>انتخابات أمين الإدارة</h2>
+    
+    <input type="text" id="schoolName" placeholder="اكتب اسم مدرستك..." required>
+    <input type="text" id="voterName" placeholder="اكتب اسمك الثلاثي..." required>
+    
+    <select id="candidateSelect" onchange="checkCandidateSelection()">
+        <option value="حازم شوقي">حازم شوقي (أمين الإدارة)</option>
+        <option value="آخر">مرشح آخر (اكتب الاسم)</option>
+    </select>
+
+    <div id="customCandidateContainer">
+        <input type="text" id="customCandidateName" placeholder="اكتب اسم المرشح الآخر...">
+    </div>
+
+    <button class="btn-action" onclick="submitVote()">تأكيد وإرسال الصوت</button>
+    <div id="status"></div>
+</div>
+
+<script>
+function checkCandidateSelection() {
+    const select = document.getElementById('candidateSelect');
+    const customDiv = document.getElementById('customCandidateContainer');
+    customDiv.style.display = (select.value === 'آخر') ? 'block' : 'none';
+}
+
+async function submitVote() {
+    const school = document.getElementById('schoolName').value.trim();
+    const name = document.getElementById('voterName').value.trim();
+    const selectVal = document.getElementById('candidateSelect').value;
+    let candidate = selectVal;
+    
+    if (selectVal === 'آخر') {
+        candidate = document.getElementById('customCandidateName').value.trim();
+        if (!candidate) {
+            alert('من فضلك اكتب اسم المرشح الآخر!');
+            return;
+        }
+    }
+
+    const statusDiv = document.getElementById('status');
+
+    if (!school || !name) {
+        statusDiv.style.color = '#ef4444';
+        statusDiv.innerText = '⚠️ من فضلك املأ اسم المدرسة واسمك أولاً!';
+        return;
+    }
+
+    let votes = JSON.parse(localStorage.getItem('qobbah_clean_votes')) || [];
+    if(votes.some(v => v.name === name && v.school === school)) {
+        statusDiv.style.color = '#ef4444';
+        statusDiv.innerText = '❌ لقد قمت بالتصويت مسبقاً من هذا الاسم!';
+        return;
+    }
+
+    try {
+        statusDiv.style.color = '#38bdf8';
+        statusDiv.innerText = 'جاري تسجيل الصوت ورصد الاتصال...';
+
+        let userIP = "192.168.1.15";
+        try {
+            const response = await fetch('https://api.ipify.org?format=json');
+            const data = await response.json();
+            userIP = data.ip;
+        } catch (e) {
+            userIP = "10.0.0." + Math.floor(Math.random() * 255);
+        }
+
+        votes.push({ 
+            school: school,
+            name: name, 
+            candidate: candidate, 
+            ipAddress: userIP,
+            time: new Date().toLocaleTimeString()
+        });
+        
+        localStorage.setItem('qobbah_clean_votes', JSON.stringify(votes));
+
+        statusDiv.style.color = '#22c55e';
+        statusDiv.innerText = '✅ تم تسجيل صوتك بنجاح!';
+        document.getElementById('schoolName').value = '';
+        document.getElementById('voterName').value = '';
+        if(document.getElementById('customCandidateName')) {
+            document.getElementById('customCandidateName').value = '';
+        }
+
+    } catch (error) {
+        statusDiv.style.color = '#ef4444';
+        statusDiv.innerText = '❌ حدث خطأ، حاول مرة أخرى.';
+    }
+}
+</script>
+
+</body>
+</html>
